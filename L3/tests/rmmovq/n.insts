@@ -1,0 +1,2 @@
+rmmovq %rax, (%rcx)
+rmmovq %rdx, 8(%rcx)

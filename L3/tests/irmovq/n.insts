@@ -1,0 +1,15 @@
+irmovq 0x01234567890abcdef, %rax
+irmovq 0x1, %rcx
+irmovq 0x2, %rdx
+irmovq 0x3, %rbx
+irmovq 0x4, %rsp
+irmovq 0x5, %rbp
+irmovq 0x6, %rsi
+irmovq 0x7, %rdi
+irmovq 0x8, %r8
+irmovq 0x9, %r9
+irmovq 0xa, %r10
+irmovq 0xb, %r11
+irmovq 0xc, %r12
+irmovq 0xd, %r13
+irmovq 0xe, %r14
