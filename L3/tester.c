@@ -77,13 +77,6 @@
  *e.g., call (void)dump_state(state)
  */
 
-// Cooper helper functions
-
-// Return 1 if valid flag
-int is_valid_flag(uint8_t flag) {
-  return (flag == FLAG_O || flag == FLAG_Z || flag == FLAG_S);
-}
-
 /*
  * is_equal compares two y86 machine states for equivalence.
  * It returns 1 if s1 and s2 are equivalent.
@@ -98,15 +91,15 @@ int is_equal(y86_state_t *s1, y86_state_t *s2) {
 
   if (s1->start_addr != s2->start_addr || s1->valid_mem != s2->valid_mem ||
       s1->pc != s2->pc || memcmp(s1->memory, s2->memory, s1->valid_mem) != 0 ||
-      memcmp(s1->registers, s2->registers, 16 * sizeof(uint64_t)) != 0) {
+      memcmp(s1->registers, s2->registers, 15 * sizeof(uint64_t)) != 0) {
     return 0;
   }
 
-  if (is_valid_flag(s1->flags) || is_valid_flag(s2->flags)) {
-    return (s1->flags == s2->flags);
-  }
+  // Masking of flags for comparison (zeroing irrelevent bits)
+  uint8_t s1_flags = 0b11001000 & s1->flags;
+  uint8_t s2_flags = 0b11001000 & s2->flags;
 
-  return 1;
+  return (s1_flags == s2_flags);
 }
 
 /*
@@ -197,7 +190,8 @@ int y86_check(y86_state_t *state, y86_inst_t *instructions, int n_inst,
       state->pc += 1;
       break;
     case I_HALT:
-      return !is_equal(&sim_state, state);
+      n_inst = 0;
+      break;
     case I_RRMOVQ:
       state->registers[instructions->rB] = state->registers[instructions->rA];
       state->pc += 2;
@@ -284,7 +278,8 @@ int y86_check(y86_state_t *state, y86_inst_t *instructions, int n_inst,
     case I_CMOVGE:
       // TODO: STUB
       break;
-    case I_INVALID: // TODO: STUB
+    case I_INVALID:
+      n_inst = 0;
       break;
     }
 

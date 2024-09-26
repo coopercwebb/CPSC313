@@ -182,6 +182,10 @@ void test_y86_check(const char *name) {
 
 int main(int argc, char *argv[]) {
 
+  // Custom testing
+  test_y86_check("tests/halt_cust");
+  test_y86_check("tests/irmovq_cust");
+
   test_is_equal();
   test_read_quad();
   test_write_quad();
