@@ -77,7 +77,8 @@
  *e.g., call (void)dump_state(state)
  */
 
-// Cooper helper function
+// Cooper helper functions
+
 // Return 1 if valid flag
 int is_valid_flag(uint8_t flag) {
   return (flag == FLAG_O || flag == FLAG_Z || flag == FLAG_S);
@@ -181,6 +182,115 @@ int write_quad(y86_state_t *state, uint64_t address, uint64_t value) {
 int y86_check(y86_state_t *state, y86_inst_t *instructions, int n_inst,
               y86sim_func simfunc) {
 
-  // simfunc(state, instructions, n_inst)
-  return -1;
+  // simulate instruction here
+  // enter parameters into simfunc
+  // compare the 2 states (our simulation vs the sim func)
+  // pass if equal
+  y86_state_t sim_state = *state;
+  simfunc(&sim_state, instructions, n_inst);
+
+  while (n_inst > 0) {
+    inst_t instruction_type = inst_to_enum(instructions->instruction);
+
+    switch (instruction_type) {
+    case I_NOP:
+      state->pc += 1;
+      break;
+    case I_HALT:
+      return !is_equal(&sim_state, state);
+    case I_RRMOVQ:
+      state->registers[instructions->rB] = state->registers[instructions->rA];
+      state->pc += 2;
+      break;
+    case I_IRMOVQ:
+      state->registers[instructions->rB] = instructions->constval;
+      state->pc += 10;
+      break;
+    case I_RMMOVQ:
+      // TODO: STUB
+      break;
+    case I_MRMOVQ:
+      // TODO: STUB
+      break;
+    case I_PUSHQ:
+      // TODO: STUB
+      break;
+    case I_POPQ:
+      // TODO: STUB
+      break;
+    case I_CALL:
+      // TODO: STUB
+      break;
+    case I_RET:
+      // TODO: STUB
+      break;
+    case I_J:
+      // TODO: STUB
+      break;
+    case I_JEQ:
+      // TODO: STUB
+      break;
+    case I_JNE:
+      // TODO: STUB
+      break;
+    case I_JL:
+      // TODO: STUB
+      break;
+    case I_JLE:
+      // TODO: STUB
+      break;
+    case I_JG:
+      // TODO: STUB
+      break;
+    case I_JGE:
+      // TODO: STUB
+      break;
+    case I_ADDQ:
+      // TODO: STUB
+      break;
+    case I_SUBQ:
+      // TODO: STUB
+      break;
+    case I_MULQ:
+      // TODO: STUB
+      break;
+    case I_MODQ:
+      // TODO: STUB
+      break;
+    case I_DIVQ:
+      // TODO: STUB
+      break;
+    case I_ANDQ:
+      // TODO: STUB
+      break;
+    case I_XORQ:
+      // TODO: STUB
+      break;
+    case I_CMOVEQ:
+      // TODO: STUB
+      break;
+    case I_CMOVNE:
+      // TODO: STUB
+      break;
+    case I_CMOVL:
+      // TODO: STUB
+      break;
+    case I_CMOVLE:
+      // TODO: STUB
+      break;
+    case I_CMOVG:
+      // TODO: STUB
+      break;
+    case I_CMOVGE:
+      // TODO: STUB
+      break;
+    case I_INVALID: // TODO: STUB
+      break;
+    }
+
+    instructions++;
+    n_inst--;
+  }
+
+  return !is_equal(&sim_state, state);
 }
