@@ -1,0 +1,66 @@
+# TODO: Copy inline
+# inlining (rdi: r10 , rsi: r11, rdx: rX, rax: rX)
+jmp copy1
+copycontinue1:
+	mrmovq 0(%rdi), %rax
+	rmmovq %rax, 0(%rdx)
+	irmovq $8, %rax
+	addq   %rax, %rdx
+	addq   %rax, %rdi
+copy1:	
+	rrmovq %rsi, %rax
+	subq   %rdi, %rax
+	jge     copycontinue1
+	rrmovq %rdx, %rax
+
+# TODO: Copy inline v2
+# inlining (rdi: r9 , rsi: r10, rdx: r11, rax: ENTER RETURN)
+rrmovq %rX, %r9
+rrmovq %rX, %r10
+rrmovq %rX, %r11
+jmp copyX
+copycontinueX:
+	mrmovq 0(%r9), %rax
+	rmmovq %rax, 0(%r11)
+	irmovq $8, %rax
+	addq   %rax, %r11
+	addq   %rax, %r9
+copyX:	
+	rrmovq %r10, %rax
+	subq   %r9, %rax
+	jge     copycontinueX
+	rrmovq %r11, %rax
+
+# TODO: Copy inline v2
+# inlining (rdi: r9 , rsi: r10, rdx: r11, rax: ENTER RETURN)
+
+rrmovq %rsi, %r10
+subq %rdi, %r10
+rrmovq %rdi, %r11
+irmovq temp, %r9
+addq %r9, %r10
+jmp copy3
+copycontinue3:
+	mrmovq 0(%r9), %rax
+	rmmovq %rax, 0(%r11)
+	irmovq $8, %rax
+	addq   %rax, %r11
+	addq   %rax, %r9
+copy3:	
+	rrmovq %r10, %rax
+	subq   %r9, %rax
+	jge     copycontinue3
+	rrmovq %r11, %rax
+
+
+pushq  %rdi
+pushq  %rsi	              # Copy temp back to A[first] ... A[last]
+subq   %rdi, %rsi
+rrmovq %rdi, %rdx
+irmovq temp, %rdi
+addq   %rdi, %rsi
+call   copy
+popq   %rsi
+popq   %rdi
+
+

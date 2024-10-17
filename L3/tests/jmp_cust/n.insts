@@ -1,0 +1,6 @@
+subq %r12,%r12
+andq %r12,%r10
+divq %r12,%r11
+subq %r10,%r10
+jl 0x829f4f4dd38cac0f
+modq %r11,%r10

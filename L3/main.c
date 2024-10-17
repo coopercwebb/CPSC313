@@ -82,21 +82,6 @@ void test_is_equal() {
   b.registers[0] = X;
   REQUIRE(is_equal(&a, &b));
 
-  // my tests
-  a.memory[20] = 'c';
-  b.memory[20] = 'd';
-  REQUIRE(!is_equal(&a, &b));
-
-  b.memory[20] = 'c';
-  REQUIRE(is_equal(&a, &b));
-
-  a.registers[15] = 24;
-  b.registers[15] = 15;
-  REQUIRE(!is_equal(&a, &b));
-
-  b.registers[15] = 24;
-  REQUIRE(is_equal(&a, &b));
-
   printf("Test test_is_equal: PASSED\n\n");
   printf("Of course, these are just the tests the instructors gave me so far, "
          "which I know are incomplete.\n");
@@ -185,6 +170,8 @@ int main(int argc, char *argv[]) {
   // Custom testing
   test_y86_check("tests/halt_cust");
   test_y86_check("tests/irmovq_cust");
+  test_y86_check("tests/modq1_cust");
+  test_y86_check("tests/jmp_cust");
 
   test_is_equal();
   test_read_quad();

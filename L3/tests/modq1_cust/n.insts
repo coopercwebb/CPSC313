@@ -1,0 +1,6 @@
+irmovq 0x5d1f01928a3fa96c,%r10
+irmovq 0xdd178df7a48fd9b1,%r10
+irmovq 0x5f8dff9003f16df,%r9
+irmovq 0xbbbfc962bffd65db,%r9
+rrmovq %r10,%r8
+modq %r9,%r8

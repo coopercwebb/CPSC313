@@ -91,13 +91,16 @@ int is_equal(y86_state_t *s1, y86_state_t *s2) {
 
   if (s1->start_addr != s2->start_addr || s1->valid_mem != s2->valid_mem ||
       s1->pc != s2->pc || memcmp(s1->memory, s2->memory, s1->valid_mem) != 0 ||
-      memcmp(s1->registers, s2->registers, 15 * sizeof(uint64_t)) != 0) {
+      memcmp(s1->registers, s2->registers, 15 * sizeof(s1->registers[0])) !=
+          0) {
     return 0;
   }
 
+  uint8_t flag_mask = (FLAG_O | FLAG_Z | FLAG_S);
+
   // Masking of flags for comparison (zeroing irrelevent bits)
-  uint8_t s1_flags = 0b11001000 & s1->flags;
-  uint8_t s2_flags = 0b11001000 & s2->flags;
+  uint8_t s1_flags = flag_mask & s1->flags;
+  uint8_t s2_flags = flag_mask & s2->flags;
 
   return (s1_flags == s2_flags);
 }
@@ -150,6 +153,62 @@ int write_quad(y86_state_t *state, uint64_t address, uint64_t value) {
   return 1;
 }
 
+void set_flag(y86_state_t *state, uint64_t result) {
+
+  if (result == 0) {
+    state->flags = FLAG_Z;
+  } else if ((int64_t)result < 0) {
+    state->flags = FLAG_S;
+  } else {
+    state->flags = 0x0;
+  }
+}
+
+typedef enum _eval_t { NO_COND, LE, L, E, NE, GE, G } _eval_t;
+
+// #define FLAG_O 0x20
+// #define FLAG_Z 0x40
+// #define FLAG_S 0x04
+
+int eval(uint8_t cur_flag, _eval_t eval) {
+  uint8_t mask;
+
+  switch (eval) {
+  case NO_COND:
+    return 1;
+  case LE:
+    mask = FLAG_S | FLAG_Z;
+    return (mask & cur_flag);
+  case L:
+    return (FLAG_S & cur_flag);
+  case E:
+    return (FLAG_Z & cur_flag);
+  case NE:
+    return (!(FLAG_Z & cur_flag));
+  case GE:
+    return (!(FLAG_S & cur_flag));
+  case G:
+    mask = FLAG_S | FLAG_Z;
+    return (!(mask & cur_flag));
+  }
+
+  return 0;
+}
+
+int ra_check(y86_inst_t instruction) {
+  if (instruction.rA < 0 || instruction.rA >= 15) {
+    return 0;
+  }
+  return 1;
+}
+
+int rb_check(y86_inst_t instruction) {
+  if (instruction.rB < 0 || instruction.rB >= 15) {
+    return 0;
+  }
+  return 1;
+}
+
 /*
  * y86_check returns 0 if the y86sim_func properly simulates
  * the n_inst instructions described in the instructions array, and
@@ -181,6 +240,8 @@ int y86_check(y86_state_t *state, y86_inst_t *instructions, int n_inst,
   // pass if equal
   y86_state_t sim_state = *state;
   simfunc(&sim_state, instructions, n_inst);
+  uint64_t result;
+  uint64_t *mem_read_result = malloc(sizeof(uint64_t));
 
   while (n_inst > 0) {
     inst_t instruction_type = inst_to_enum(instructions->instruction);
@@ -193,90 +254,291 @@ int y86_check(y86_state_t *state, y86_inst_t *instructions, int n_inst,
       n_inst = 0;
       break;
     case I_RRMOVQ:
+      if (!ra_check(*instructions) || !rb_check(*instructions)) {
+        n_inst = 0;
+        break;
+      }
       state->registers[instructions->rB] = state->registers[instructions->rA];
       state->pc += 2;
       break;
     case I_IRMOVQ:
+      if (!rb_check(*instructions)) {
+        n_inst = 0;
+        break;
+      }
       state->registers[instructions->rB] = instructions->constval;
       state->pc += 10;
       break;
     case I_RMMOVQ:
-      // TODO: STUB
+      if (!ra_check(*instructions) || !rb_check(*instructions)) {
+        n_inst = 0;
+        break;
+      }
+      if (write_quad(state,
+                     state->registers[instructions->rB] +
+                         instructions->constval,
+                     state->registers[instructions->rA])) {
+        state->pc += 10;
+      } else {
+        n_inst = 0;
+      }
       break;
     case I_MRMOVQ:
-      // TODO: STUB
+      if (!ra_check(*instructions) || !rb_check(*instructions)) {
+        n_inst = 0;
+        break;
+      }
+      if (read_quad(state,
+                    state->registers[instructions->rB] + instructions->constval,
+                    mem_read_result)) {
+        state->registers[instructions->rA] = *mem_read_result;
+        state->pc += 10;
+      } else {
+        n_inst = 0;
+      }
       break;
     case I_PUSHQ:
-      // TODO: STUB
+      // m[r[rsp] - 8] ← r[rs]; r[rsp] = r[rsp] - 8
+      // rs is rA
+      // rsp is 4
+      if (!ra_check(*instructions)) {
+        n_inst = 0;
+        break;
+      }
+      if (write_quad(state, state->registers[4] - 8,
+                     state->registers[instructions->rA])) {
+        state->registers[4] -= 8;
+        state->pc += 2;
+      } else {
+        n_inst = 0;
+      }
+
       break;
     case I_POPQ:
-      // TODO: STUB
+      // r[rd] ← m[r[rsp]]; r[rsp] = r[rsp] + 8
+      // rd is rA
+      // rsp is 4
+      if (!ra_check(*instructions)) {
+        n_inst = 0;
+        break;
+      }
+      if (read_quad(state, state->registers[4], mem_read_result)) {
+        state->registers[instructions->rA] = *mem_read_result;
+        state->registers[4] += 8;
+        state->pc += 2;
+      } else {
+        n_inst = 0;
+      }
       break;
     case I_CALL:
-      // TODO: STUB
+      // pushq PC; jmp D
+      // TODO: repeated code for pushq
+      if (write_quad(state, state->registers[4] - 8, state->pc + 9)) {
+        state->registers[4] -= 8;
+        state->pc = instructions->constval;
+      } else {
+        n_inst = 0;
+      }
+
       break;
     case I_RET:
-      // TODO: STUB
+      // popq PC
+      // TODO: repeated code for popq
+      if (read_quad(state, state->registers[4], mem_read_result)) {
+        state->registers[4] += 8;
+        state->pc = *mem_read_result;
+      } else {
+        n_inst = 0;
+      }
       break;
     case I_J:
-      // TODO: STUB
+      if (eval(state->flags, NO_COND)) {
+        state->pc = instructions->constval;
+      } else {
+        state->pc += 2;
+      }
       break;
     case I_JEQ:
-      // TODO: STUB
+      if (eval(state->flags, E)) {
+        state->pc = instructions->constval;
+      } else {
+        state->pc += 9;
+      }
       break;
     case I_JNE:
-      // TODO: STUB
+      if (eval(state->flags, NE)) {
+        state->pc = instructions->constval;
+      } else {
+        state->pc += 9;
+      }
       break;
     case I_JL:
-      // TODO: STUB
+      if (eval(state->flags, L)) {
+        state->pc = instructions->constval;
+      } else {
+        state->pc += 9;
+      }
       break;
     case I_JLE:
-      // TODO: STUB
+      if (eval(state->flags, LE)) {
+        state->pc = instructions->constval;
+      } else {
+        state->pc += 9;
+      }
       break;
     case I_JG:
-      // TODO: STUB
+      if (eval(state->flags, G)) {
+        state->pc = instructions->constval;
+      } else {
+        state->pc += 9;
+      }
       break;
     case I_JGE:
-      // TODO: STUB
+      if (eval(state->flags, GE)) {
+        state->pc = instructions->constval;
+      } else {
+        state->pc += 9;
+      }
       break;
     case I_ADDQ:
-      // TODO: STUB
+      if (!ra_check(*instructions) || !rb_check(*instructions)) {
+        n_inst = 0;
+        break;
+      }
+      result = state->registers[instructions->rB] +
+               state->registers[instructions->rA];
+      state->registers[instructions->rB] = result;
+      set_flag(state, result);
+      state->pc += 2;
       break;
     case I_SUBQ:
-      // TODO: STUB
+      if (!ra_check(*instructions) || !rb_check(*instructions)) {
+        n_inst = 0;
+        break;
+      }
+      result = state->registers[instructions->rB] -
+               state->registers[instructions->rA];
+      state->registers[instructions->rB] = result;
+      set_flag(state, result);
+      state->pc += 2;
       break;
     case I_MULQ:
-      // TODO: STUB
+      if (!ra_check(*instructions) || !rb_check(*instructions)) {
+        n_inst = 0;
+        break;
+      }
+      result = (int64_t)state->registers[instructions->rB] *
+               (int64_t)state->registers[instructions->rA];
+      state->registers[instructions->rB] = result;
+      set_flag(state, result);
+      state->pc += 2;
       break;
     case I_MODQ:
-      // TODO: STUB
+      if (!ra_check(*instructions) || !rb_check(*instructions) ||
+          state->registers[instructions->rA] == 0) {
+        n_inst = 0;
+        break;
+      }
+      result = (int64_t)state->registers[instructions->rB] %
+               (int64_t)state->registers[instructions->rA];
+      state->registers[instructions->rB] = result;
+      set_flag(state, result);
+      state->pc += 2;
       break;
     case I_DIVQ:
-      // TODO: STUB
+      if (!ra_check(*instructions) || !rb_check(*instructions) ||
+          state->registers[instructions->rA] == 0) {
+        n_inst = 0;
+        break;
+      }
+      result = (int64_t)state->registers[instructions->rB] /
+               (int64_t)state->registers[instructions->rA];
+      state->registers[instructions->rB] = result;
+      set_flag(state, result);
+      state->pc += 2;
       break;
     case I_ANDQ:
-      // TODO: STUB
+      if (!ra_check(*instructions) || !rb_check(*instructions)) {
+        n_inst = 0;
+        break;
+      }
+      result = state->registers[instructions->rB] &
+               state->registers[instructions->rA];
+      state->registers[instructions->rB] = result;
+      set_flag(state, result);
+      state->pc += 2;
       break;
     case I_XORQ:
-      // TODO: STUB
+      if (!ra_check(*instructions) || !rb_check(*instructions)) {
+        n_inst = 0;
+        break;
+      }
+      result = state->registers[instructions->rB] ^
+               state->registers[instructions->rA];
+      state->registers[instructions->rB] = result;
+      set_flag(state, result);
+      state->pc += 2;
       break;
     case I_CMOVEQ:
-      // TODO: STUB
+      if (!ra_check(*instructions) || !rb_check(*instructions)) {
+        n_inst = 0;
+        break;
+      }
+      if (eval(state->flags, E)) {
+        state->registers[instructions->rB] = state->registers[instructions->rA];
+      }
+      state->pc += 2;
+      break;
       break;
     case I_CMOVNE:
-      // TODO: STUB
+      if (!ra_check(*instructions) || !rb_check(*instructions)) {
+        n_inst = 0;
+        break;
+      }
+      if (eval(state->flags, NE)) {
+        state->registers[instructions->rB] = state->registers[instructions->rA];
+      }
+      state->pc += 2;
       break;
     case I_CMOVL:
-      // TODO: STUB
+      if (!ra_check(*instructions) || !rb_check(*instructions)) {
+        n_inst = 0;
+        break;
+      }
+      if (eval(state->flags, L)) {
+        state->registers[instructions->rB] = state->registers[instructions->rA];
+      }
+      state->pc += 2;
       break;
     case I_CMOVLE:
-      // TODO: STUB
+      if (!ra_check(*instructions) || !rb_check(*instructions)) {
+        n_inst = 0;
+        break;
+      }
+      if (eval(state->flags, LE)) {
+        state->registers[instructions->rB] = state->registers[instructions->rA];
+      }
+      state->pc += 2;
       break;
     case I_CMOVG:
-      // TODO: STUB
+      if (!ra_check(*instructions) || !rb_check(*instructions)) {
+        n_inst = 0;
+        break;
+      }
+      if (eval(state->flags, G)) {
+        state->registers[instructions->rB] = state->registers[instructions->rA];
+      }
+      state->pc += 2;
       break;
     case I_CMOVGE:
-      // TODO: STUB
+      if (!ra_check(*instructions) || !rb_check(*instructions)) {
+        n_inst = 0;
+        break;
+      }
+      if (eval(state->flags, GE)) {
+        state->registers[instructions->rB] = state->registers[instructions->rA];
+      }
+      state->pc += 2;
       break;
     case I_INVALID:
       n_inst = 0;
@@ -286,6 +548,8 @@ int y86_check(y86_state_t *state, y86_inst_t *instructions, int n_inst,
     instructions++;
     n_inst--;
   }
+
+  free(mem_read_result);
 
   return !is_equal(&sim_state, state);
 }
