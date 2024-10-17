@@ -95,7 +95,11 @@ mergesorthelper:
 	mrmovq 16(%rsp), %rdi
 	addq %r13, %rsp
 
-	call   merge           
+    pushq %rdi
+    pushq %r12
+	call   merge  
+	popq %r12
+	popq %rdi
 
 done:	ret
 
@@ -107,7 +111,7 @@ done:	ret
 #
 
 
-# TODO: %rcx, %r8, %r9, %r10, %r11 and %rax are available
+# TODO: %rcx, %r8, %r9, %r10, %r11, %rax and are available
 
 merge:
 	irmovq temp, %rcx
@@ -126,21 +130,65 @@ tempcopy:
 	subq %rsi, %r9
 	jle tempcopycont
 	
-	irmovq temp, %rcx # also L array start, L[i]
+	irmovq temp, %rcx # rcx = L
 
 	rrmovq %r14, %r8 # r8 = n1
 	addq %rdx, %r8
 	subq %rdi, %r8
-	addq %rcx, %r8 # also R array start j
+	addq %rcx, %r8 
+    rrmovq %r8, %r11 # r11 = R
 
 	rrmovq %rsi, %r9 # r9 = n2
 	subq %rdx, %r9
-	addq %r8, %r9 # 
+	addq %r8, %r9 
 
+    # rdi is arr
 
-
-	
-
+loopstart1:
+    rrmovq %rcx, %r10 # r10 = L
+    subq %r8, %r10 # L - n1
+    je done1
+    rrmovq %r11, %r10 # r10 = R
+    subq %r9, %r10 # R - n2
+    je done1
+    mrmovq (%rcx), %r10 # L[i]
+    mrmovq (%r11), %rax # R[i]
+    rrmovq %r10, %r12
+    subq %rax, %r12 # L[i] - R[i]
+    jg Rsmaller
+# otherwise L is smaller
+    rmmovq %r10, (%rdi)
+    addq %r14, %rcx
+    addq %r14, %rdi
+    jmp loopstart1
+Rsmaller:
+    rmmovq %rax, (%rdi)
+    addq %r14, %r11
+    addq %r14, %rdi
+    jmp loopstart1
+done1:
+lloop:
+    rrmovq %rcx, %r10
+    subq %r8, %r10
+    je done2
+    # otherwise need to transfer remaining
+    mrmovq (%rcx), %r10
+    rmmovq %r10, (%rdi)
+    addq %r14, %rdi
+    addq %r14, %rcx
+    jmp lloop
+done2:
+rloop:
+    rrmovq %r11, %r10
+    subq %r9, %r10
+    je done3
+    # otherwise need to transfer remaining
+    mrmovq (%r11), %r10
+    rmmovq %r10, (%rdi)
+    addq %r14, %rdi
+    addq %r14, %r11
+    jmp rloop
+done3:
 	ret
 
 
