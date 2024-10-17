@@ -27,6 +27,16 @@ main:	irmovq bottom,  %rsp     # initialize stack
 #    %rsi: pointer to the last element of the range to sort.
 #
 mergesort:
+	irmovq $40, %rax
+	rmmovq %rbx, -8(%rsp)
+	rmmovq %rbp, -16(%rsp)
+	rmmovq %r12, -24(%rsp)
+	rmmovq %r13, -32(%rsp)
+	rmmovq %r14, -40(%rsp)
+	subq %rax, %rsp
+	call mergesorthelper
+	ret
+mergesorthelper:
 	rrmovq %rsi, %rax  	    # is first < last ?
 	subq   %rdi, %rax
 	rrmovq %rdi, %rdx       # %rdx = mid. Note the use  of ANDQ.
@@ -47,7 +57,7 @@ mergesort:
 	subq %r8 , %rsp         
 	rrmovq %rdx, %rsi       
 
-	call   mergesort
+	call   mergesorthelper
 
 	mrmovq 0(%rsp), %rdx
 	mrmovq 8(%rsp), %rsi
@@ -64,7 +74,7 @@ mergesort:
 	rrmovq %rdx, %rdi
 	
 	addq   %rax, %rdi
-	call   mergesort
+	call   mergesorthelper
 	mrmovq 0(%rsp), %rdx
 	mrmovq 8(%rsp), %rsi
 	mrmovq 16(%rsp), %rdi
