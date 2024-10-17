@@ -27,22 +27,24 @@ main:	irmovq bottom,  %rsp     # initialize stack
 #    %rsi: pointer to the last element of the range to sort.
 #
 mergesort:
+	irmovq $2, %r12
+	irmovq $-8, %r13
+mergesortHelper:
 	rrmovq %rsi, %rax  	    # is first < last ?
 	subq   %rdi, %rax
+	rrmovq %rdi, %rdx       # %rdx = mid. Note the use  of ANDQ.
 	jle    done             # if not, done.
 
-	rrmovq %rdi, %rdx       # %rdx = mid. Note the use  of ANDQ.
+	
 	addq   %rsi, %rdx       # Since we're doing arithmetic  with
-	irmovq $2,   %rax       # pointers, we can not rely only  on
-	divq   %rax, %rdx       # integer division to ensure  we get
-	irmovq $-8,  %rax       # a valid pointer.
-	andq   %rax, %rdx       
+	divq   %r12, %rdx       # integer division to ensure  we get
+	andq   %r13, %rdx       
 
 	pushq  %rdi
 	pushq  %rsi             
 	pushq  %rdx             
 	rrmovq %rdx, %rsi       # mergesort(first, mid)
-	call   mergesort
+	call   mergesortHelper
 	popq   %rdx
 	popq   %rsi
 	popq   %rdi
@@ -51,9 +53,8 @@ mergesort:
 	pushq  %rsi             
 	pushq  %rdx 
 	rrmovq %rdx, %rdi
-	irmovq $8, %rax
-	addq   %rax, %rdi
-	call   mergesort
+	subq   %r13, %rdi
+	call   mergesortHelper
 	popq   %rdx
 	popq   %rsi
 	popq   %rdi
