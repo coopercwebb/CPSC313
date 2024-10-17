@@ -27,39 +27,48 @@ main:	irmovq bottom,  %rsp     # initialize stack
 #    %rsi: pointer to the last element of the range to sort.
 #
 mergesort:
-	irmovq $2, %r12
-	irmovq $-8, %r13
-mergesortHelper:
 	rrmovq %rsi, %rax  	    # is first < last ?
 	subq   %rdi, %rax
-	rrmovq %rdi, %rdx       # %rdx = mid. Note the use  of ANDQ.
 	jle    done             # if not, done.
 
-	
+	rrmovq %rdi, %rdx       # %rdx = mid. Note the use  of ANDQ.
 	addq   %rsi, %rdx       # Since we're doing arithmetic  with
-	divq   %r12, %rdx       # integer division to ensure  we get
-	andq   %r13, %rdx       
+	irmovq $2,   %rax       # pointers, we can not rely only  on
+	divq   %rax, %rdx       # integer division to ensure  we get
+	irmovq $-8,  %rax       # a valid pointer.
+	andq   %rax, %rdx       
 
-	pushq  %rdi
-	pushq  %rsi             
-	pushq  %rdx             
-	rrmovq %rdx, %rsi       # mergesort(first, mid)
-	call   mergesortHelper
-	popq   %rdx
-	popq   %rsi
-	popq   %rdi
-    
-	pushq  %rdi             # mergesort(mid+1, last)
-	pushq  %rsi             
-	pushq  %rdx 
+	irmovq $24, %r8
+	rmmovq %rdi, -8(%rsp)
+	rmmovq %rsi, -16(%rsp)
+	rmmovq %rdx, -24(%rsp)
+	subq %r8 , %rsp         
+	rrmovq %rdx, %rsi       
+
+	call   mergesort
+
+	mrmovq 0(%rsp), %rdx
+	mrmovq 8(%rsp), %rsi
+	mrmovq 16(%rsp), %rdi
+	addq %r8, %rsp
+
+	irmovq $8, %rax
+	
+	rmmovq %rdi, -8(%rsp)
+	rmmovq %rsi, -16(%rsp)
+	rmmovq %rdx, -24(%rsp)
+	subq %r8 , %rsp    
+
 	rrmovq %rdx, %rdi
-	subq   %r13, %rdi
-	call   mergesortHelper
-	popq   %rdx
-	popq   %rsi
-	popq   %rdi
+	
+	addq   %rax, %rdi
+	call   mergesort
+	mrmovq 0(%rsp), %rdx
+	mrmovq 8(%rsp), %rsi
+	mrmovq 16(%rsp), %rdi
+	addq %r8, %rsp
 
-	call   merge            # merge(first, mid, last)
+	call   merge           
 
 done:	ret
 
@@ -76,12 +85,17 @@ done:	ret
 # %rbp is dest
 
 merge:
-	pushq  %rbp
-	pushq  %rbx
-	pushq  %rdi
+	rmmovq %r14, -8(%rsp)
+	rmmovq %rbp, -16(%rsp)
+	rmmovq %rbx, -24(%rsp)
+	rmmovq %rdi, -32(%rsp)
+	# pushq %r14
+	#pushq  %rbp
+	#pushq  %rbx
+	#pushq  %rdi
 	rrmovq %rdx, %rcx
-	irmovq $8,   %rax
-	addq   %rax, %rcx
+	irmovq $8, %r14
+	addq   %r14, %rcx
 	irmovq temp, %rbp
     
 mergeloop1:	
@@ -99,17 +113,15 @@ mergeloop1:
 	jl     mergecopy2
 
 	rmmovq %rax, 0(%rbp)       # copy A[i] to temp
-	irmovq $8, %rax
-	addq   %rax, %rbp
-	addq   %rax, %rdi
+	addq   %r14, %rbp
+	addq   %r14, %rdi
 	jmp    mergeloop1
 
 mergecopy2:
 	mrmovq 0(%rcx), %rbx       # %ebx = A[j] again
 	rmmovq %rbx, 0(%rbp)
-	irmovq $8, %rax
-	addq   %rax, %rbp
-	addq   %rax, %rcx
+	addq   %r14, %rbp
+	addq   %r14, %rcx
 	jmp    mergeloop1
 
 mergeloop2:
@@ -122,9 +134,8 @@ mergeloop2:
 copycontinue1:
 	mrmovq 0(%r9), %rbp
 	rmmovq %rbp, 0(%r11)
-	irmovq $8, %rbp
-	addq   %rbp, %r11
-	addq   %rbp, %r9
+	addq   %r14, %r11
+	addq   %r14, %r9
 copy1:	
 	rrmovq %r10, %rbp
 	subq   %r9, %rbp
@@ -140,16 +151,16 @@ copy1:
 copycontinue2:
 	mrmovq 0(%r9), %rbp
 	rmmovq %rbp, 0(%r11)
-	irmovq $8, %rbp
-	addq   %rbp, %r11
-	addq   %rbp, %r9
+	addq   %r14, %r11
+	addq   %r14, %r9
 copy2:	
 	rrmovq %r10, %rbp
 	subq   %r9, %rbp
 	jge     copycontinue2
 	rrmovq %r11, %rbp
 	
-	popq   %rdi
+	# popq   %rdi
+	mrmovq -32(%rsp), %rdi
 	
 	rrmovq %rsi, %r10
 	subq %rdi, %r10
@@ -160,16 +171,20 @@ copy2:
 copycontinue3:
 	mrmovq 0(%r9), %rax
 	rmmovq %rax, 0(%r11)
-	irmovq $8, %rax
-	addq   %rax, %r11
-	addq   %rax, %r9
+	addq   %r14, %r11
+	addq   %r14, %r9
 copy3:	
 	rrmovq %r10, %rax
 	subq   %r9, %rax
 	jge     copycontinue3
 
-	popq   %rbx
-	popq   %rbp
+	# popq   %rbx
+	# popq   %rbp
+	# popq %r14
+
+	mrmovq -8(%rsp), %r14
+	mrmovq -16(%rsp), %rbp
+	mrmovq -24(%rsp), %rbx
 	ret
 
 
