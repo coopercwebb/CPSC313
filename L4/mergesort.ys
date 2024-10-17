@@ -112,8 +112,7 @@ done:	ret
 # %rbp is dest
 
 merge:
-	rmmovq %rbp, -8(%rsp)
-	rmmovq %rdi, -16(%rsp)
+	rmmovq %rdi, -8(%rsp)
 
 	rrmovq %rdx, %rcx
 	addq   %r14, %rcx
@@ -180,7 +179,7 @@ copy2:
 	jge     copycontinue2
 	rrmovq %r11, %rbp
 	
-	mrmovq -16(%rsp), %rdi
+	mrmovq -8(%rsp), %rdi
 	
 	rrmovq %rsi, %r10
 	subq %rdi, %r10
@@ -198,7 +197,6 @@ copy3:
 	subq   %r9, %rax
 	jge     copycontinue3
 
-	mrmovq -8(%rsp), %rbp
 	ret
 
 
