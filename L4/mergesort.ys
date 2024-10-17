@@ -105,101 +105,41 @@ done:	ret
 #    %rsi: pointer to the last element of the range to merge.
 #    %rdx: pointer to the middle element of the range to merge.
 #
-# %rdi is i
-# %rcx is j
-# %rdx is mid
-# %rsi is last
-# %rbp is dest
+
+
+# TODO: %rcx, %r8, %r9, %r10, %r11 and %rax are available
 
 merge:
-	rrmovq %rdi, %r8
+	irmovq temp, %rcx
 
-	rrmovq %rdx, %rcx
-	addq   %r14, %rcx
-	irmovq temp, %rbp
-    
-mergeloop1:	
-	rrmovq %rdx, %rax          # while (i <= mid && j <= last)
-	subq   %r8, %rax
-	rrmovq %rsi, %rax
-	jl     mergeloop2
-	
-	
-	subq   %rcx, %rax
-	mrmovq 0(%r8), %rax       # %rax = A[i]
-	mrmovq 0(%rcx), %rbx   	   # %ebx = A[j]
-	jl     mergeloop2
+	rrmovq %rdi, %r8 # r8 = ptr
 
-	
-	
-	subq   %rax, %rbx          # if A[i] <= A[j]
-	jl     mergecopy2
-
-	rmmovq %rax, 0(%rbp)       # copy A[i] to temp
-	addq   %r14, %rbp
-	addq   %r14, %r8
-	jmp    mergeloop1
-
-mergecopy2:
-	mrmovq 0(%rcx), %rbx       # %ebx = A[j] again
-	rmmovq %rbx, 0(%rbp)
-	addq   %r14, %rbp
-	addq   %r14, %rcx
-	jmp    mergeloop1
-
-mergeloop2:
-	# TODO: Copy inline v2
-	# inlining (rdi: r9 , rsi: r10, rdx: r11, rax: rbp)
+	# copy into temp
+	jmp tempcopy
+tempcopycont:
+	mrmovq (%r8), %r10
+	rmmovq %r10, (%rcx)
+	addq %r14, %rcx
+	addq %r14, %r8
+tempcopy:
 	rrmovq %r8, %r9
-	rrmovq %rdx, %r10
-	rrmovq %rbp, %r11
-	jmp copy1
-copycontinue1:
+	subq %rsi, %r9
+	jle tempcopycont
 	
-	rmmovq %rbp, 0(%r11)
-	addq   %r14, %r11
-	addq   %r14, %r9
-copy1:	
-	rrmovq %r10, %rbp
-	subq   %r9, %rbp
-	mrmovq 0(%r9), %rbp
-	jge     copycontinue1
-	rrmovq %r11, %rbp
+	irmovq temp, %rcx # also L array start, L[i]
 
-	# TODO: Copy inline v2
-	# inlining (rdi: r9 , rsi: r10, rdx: r11, rax: rbp)
-	rrmovq %rcx, %r9
-	rrmovq %rsi, %r10
-	rrmovq %rbp, %r11
-	jmp copy2
-copycontinue2:
-	rmmovq %rbp, 0(%r11)
-	addq   %r14, %r11
-	addq   %r14, %r9
-copy2:	
-	rrmovq %r10, %rbp
-	subq   %r9, %rbp
-	mrmovq 0(%r9), %rbp
-	jge     copycontinue2
-	rrmovq %r11, %rbp
+	rrmovq %r14, %r8 # r8 = n1
+	addq %rdx, %r8
+	subq %rdi, %r8
+	addq %rcx, %r8 # also R array start j
+
+	rrmovq %rsi, %r9 # r9 = n2
+	subq %rdx, %r9
+	addq %r8, %r9 # 
+
+
+
 	
-	rrmovq %rdi, %r8
-	
-	rrmovq %rsi, %r10
-	subq %r8, %r10
-	rrmovq %r8, %r11
-	irmovq temp, %r9
-	addq %r9, %r10
-	jmp copy3
-copycontinue3:
-	rmmovq %rax, 0(%r11)
-	addq   %r14, %r11
-	addq   %r14, %r9
-copy3:	
-	rrmovq %r10, %rax
-	subq   %r9, %rax
-	mrmovq 0(%r9), %rax
-	jge     copycontinue3
 
 	ret
 
