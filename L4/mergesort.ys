@@ -95,13 +95,6 @@ mergesorthelper:
 	mrmovq 16(%rsp), %rdi
 	addq %r13, %rsp
 
-    pushq %rdi
-    pushq %r12
-	call   merge  
-	popq %r12
-	popq %rdi
-
-done:	ret
 
 #
 # Merge
@@ -109,87 +102,104 @@ done:	ret
 #    %rsi: pointer to the last element of the range to merge.
 #    %rdx: pointer to the middle element of the range to merge.
 #
-
-
-# TODO: %rcx, %r8, %r9, %r10, %r11, %rax and are available
+# %rdi is i
+# %rcx is j
+# %rdx is mid
+# %rsi is last
+# %rbp is dest
 
 merge:
-	irmovq temp, %rcx
+	rrmovq %rdi, %r8
 
-	rrmovq %rdi, %r8 # r8 = ptr
-
-	# copy into temp
-	jmp tempcopy
-tempcopycont:
-	mrmovq (%r8), %r10
-	rmmovq %r10, (%rcx)
-	addq %r14, %rcx
-	addq %r14, %r8
-tempcopy:
-	rrmovq %r8, %r9
-	subq %rsi, %r9
-	jle tempcopycont
+	rrmovq %rdx, %rcx
+	addq   %r14, %rcx
+	irmovq temp, %rbp
+    
+mergeloop1:	
+	rrmovq %rdx, %rax          # while (i <= mid && j <= last)
+	subq   %r8, %rax
+	rrmovq %rsi, %rax
+	jl     mergeloop2
 	
-	irmovq temp, %rcx # rcx = L
+	
+	subq   %rcx, %rax
+	mrmovq 0(%r8), %rax       # %rax = A[i]
+	mrmovq 0(%rcx), %rbx   	   # %ebx = A[j]
+	jl     mergeloop2
 
-	rrmovq %r14, %r8 # r8 = n1
-	addq %rdx, %r8
-	subq %rdi, %r8
-	addq %rcx, %r8 
-    rrmovq %r8, %r11 # r11 = R
+	
+	
+	subq   %rax, %rbx          # if A[i] <= A[j]
+	jl     mergecopy2
 
-	rrmovq %rsi, %r9 # r9 = n2
-	subq %rdx, %r9
-	addq %r8, %r9 
+	rmmovq %rax, 0(%rbp)       # copy A[i] to temp
+	addq   %r14, %rbp
+	addq   %r14, %r8
+	jmp    mergeloop1
 
-    # rdi is arr
+mergecopy2:
+	mrmovq 0(%rcx), %rbx       # %ebx = A[j] again
+	rmmovq %rbx, 0(%rbp)
+	addq   %r14, %rbp
+	addq   %r14, %rcx
+	jmp    mergeloop1
 
-loopstart1:
-    rrmovq %rcx, %r10 # r10 = L
-    subq %r8, %r10 # L - n1
-    je done1
-    rrmovq %r11, %r10 # r10 = R
-    subq %r9, %r10 # R - n2
-    je done1
-    mrmovq (%rcx), %r10 # L[i]
-    mrmovq (%r11), %rax # R[i]
-    rrmovq %r10, %r12
-    subq %rax, %r12 # L[i] - R[i]
-    jg Rsmaller
-# otherwise L is smaller
-    rmmovq %r10, (%rdi)
-    addq %r14, %rcx
-    addq %r14, %rdi
-    jmp loopstart1
-Rsmaller:
-    rmmovq %rax, (%rdi)
-    addq %r14, %r11
-    addq %r14, %rdi
-    jmp loopstart1
-done1:
-lloop:
-    rrmovq %rcx, %r10
-    subq %r8, %r10
-    je done2
-    # otherwise need to transfer remaining
-    mrmovq (%rcx), %r10
-    rmmovq %r10, (%rdi)
-    addq %r14, %rdi
-    addq %r14, %rcx
-    jmp lloop
-done2:
-rloop:
-    rrmovq %r11, %r10
-    subq %r9, %r10
-    je done3
-    # otherwise need to transfer remaining
-    mrmovq (%r11), %r10
-    rmmovq %r10, (%rdi)
-    addq %r14, %rdi
-    addq %r14, %r11
-    jmp rloop
-done3:
+mergeloop2:
+	# TODO: Copy inline v2
+	# inlining (rdi: r9 , rsi: r10, rdx: r11, rax: rbp)
+	rrmovq %r8, %r9
+	rrmovq %rdx, %r10
+	rrmovq %rbp, %r11
+	jmp copy1
+copycontinue1:
+	
+	rmmovq %rbp, 0(%r11)
+	addq   %r14, %r11
+	addq   %r14, %r9
+copy1:	
+	rrmovq %r10, %rbp
+	subq   %r9, %rbp
+	mrmovq 0(%r9), %rbp
+	jge     copycontinue1
+	rrmovq %r11, %rbp
+
+	# TODO: Copy inline v2
+	# inlining (rdi: r9 , rsi: r10, rdx: r11, rax: rbp)
+	rrmovq %rcx, %r9
+	rrmovq %rsi, %r10
+	rrmovq %rbp, %r11
+	jmp copy2
+copycontinue2:
+	rmmovq %rbp, 0(%r11)
+	addq   %r14, %r11
+	addq   %r14, %r9
+copy2:	
+	rrmovq %r10, %rbp
+	subq   %r9, %rbp
+	mrmovq 0(%r9), %rbp
+	jge     copycontinue2
+	rrmovq %r11, %rbp
+	
+	rrmovq %rdi, %r8
+	
+	rrmovq %rsi, %r10
+	subq %r8, %r10
+	rrmovq %r8, %r11
+	irmovq temp, %r9
+	addq %r9, %r10
+	jmp copy3
+copycontinue3:
+	rmmovq %rax, 0(%r11)
+	addq   %r14, %r11
+	addq   %r14, %r9
+copy3:	
+	rrmovq %r10, %rax
+	subq   %r9, %rax
+	mrmovq 0(%r9), %rax
+	jge     copycontinue3
 	ret
+
+done:	ret
 
 
 #
@@ -229,4 +239,3 @@ size:   .quad 13
 .pos 0x3000
 top:	            .quad 0x00000000,0x20     # top of stack.
 bottom:             .quad 0x00000000          # bottom of stack.
-
