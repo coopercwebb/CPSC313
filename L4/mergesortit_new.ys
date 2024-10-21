@@ -44,8 +44,6 @@ mergesort:
 	rmmovq %r14, -40(%rsp)
 	subq %rax, %rsp
 	irmovq $8, %r14
-	irmovq $24, %r13
-	irmovq $2, %r12
 	call mergesorthelper
 	irmovq $40, %rax
 	mrmovq 0(%rsp), %r14
@@ -56,64 +54,62 @@ mergesort:
 	addq %rax, %rsp
 	ret
 mergesorthelper:
-	rrmovq %rsi, %rax  	    # is first < last ?
-	subq   %rdi, %rax
-	rrmovq %rdi, %rdx       # %rdx = mid. Note the use  of ANDQ.
-	jle    done             # if not, done.
+    # r13: curr_size
+    # rdi: first element of range (const)
+    # rsi: n-1 (const)
+    # rbx: left_start 
+    # rdx: mid
+    # r12: right_end
+    # rbx, rdx and r12 are preserved by merge
+    # many merge regs can be used as temp regs, ex rcx, r8, r9, r10, r11
+    irmovq $8, %r13 # r13 = curr_size = 1, VAR
+loop1:
+    rrmovq %rsi, %rcx
+    subq %r13, %rcx
+    jl done
+    rrmovq %rdi, %rbx # rbx = left_start = first element of range
+loop2:
+    rrmovq %rbx, %rcx
+    subq %rsi, %rcx
+    jge loop2done
+    # mid prep
+    rrmovq %rbx, %rdx # rdx = left_start
+    subq %r14, %rdx # rdx = left_start - 1
+    rrmovq %rdx, %r12 # r12 = left_start - 1
+    addq %r13, %rdx # rdx = left_start + curr_size - 1
+    # inline min(left_start + curr_size - 1, n-1)
+    rrmovq %rdx, %rcx
+    subq %rsi, %rcx
+    cmovge %rsi, %rdx
 
-	
-	addq   %rsi, %rdx       # Since we're doing arithmetic  with
-	
-	divq   %r12, %rdx       # integer division to ensure  we get
-	irmovq $-8,  %rax       # a valid pointer.
-	andq   %rax, %rdx       
+    # right_end prep
+    irmovq $2, %rcx
+    mulq %r13, %rcx # rcx = 2*curr_size
+    addq %rcx, %r12 # r12 = left_start + 2*curr_size - 1
+    # inline min(left_start + 2*curr_size - 1, n-1)
+    rrmovq %r12, %rcx
+    subq %rsi, %rcx
+    cmovge %rsi, %r12
 
-	rmmovq %rdi, -8(%rsp)
-	rmmovq %rsi, -16(%rsp)
-	rmmovq %rdx, -24(%rsp)
-	subq %r13 , %rsp         
-	rrmovq %rdx, %rsi       
 
-	call   mergesorthelper
-
-	mrmovq 0(%rsp), %rdx
-	mrmovq 8(%rsp), %rsi
-	mrmovq 16(%rsp), %rdi
-	addq %r13, %rsp
-	
-	rmmovq %rdi, -8(%rsp)
-	rmmovq %rsi, -16(%rsp)
-	rmmovq %rdx, -24(%rsp)
-	subq %r13 , %rsp    
-
-	rrmovq %rdx, %rdi
-	
-	addq   %r14, %rdi
-	call   mergesorthelper
-	mrmovq 0(%rsp), %rdx
-	mrmovq 8(%rsp), %rsi
-	mrmovq 16(%rsp), %rdi
-	addq %r13, %rsp
 
 
 #
 # Merge
-#    %rdi: pointer to the first element of the range to merge.
-#    %rsi: pointer to the last element of the range to merge.
+#    %rbx: pointer to the first element of the range to merge.
 #    %rdx: pointer to the middle element of the range to merge.
+#    %r12: pointer to the last element of the range to merge.
 #
-# %rdi is i
+# %rbx is i
 # %rcx is j
 # %rdx is mid
-# %rsi is last
+# %r12 is last
 # %rbp is dest
 
 merge:
-	
-
 	rrmovq %rdx, %rcx
     irmovq temp, %rbp
-    rrmovq %rdi, %r8
+    rrmovq %rbx, %r8
 	addq   %r14, %rcx
 	
     
@@ -121,16 +117,13 @@ mergeloop1:
 	rrmovq %rdx, %rax          # while (i <= mid && j <= last)
 	subq   %r8, %rax
     mrmovq 0(%rcx), %r10   	   # %ebx = A[j]
-	rrmovq %rsi, %rax
+	rrmovq %r12, %rax
 	jl     mergeloop2
-	
 	
 	subq   %rcx, %rax
 	mrmovq 0(%r8), %rax       # %rax = A[i]
 	
 	jl     mergeloop2
-
-	
 	
 	subq   %rax, %r10          # if A[i] <= A[j]
 	jl     mergecopy2
@@ -149,7 +142,7 @@ mergecopy2:
 
 mergeloop2:
 	# TODO: Copy inline v2
-	# inlining (rdi: r9 , rsi: r10, rdx: r11, rax: rbp)
+	# inlining (rbx: r9 , rsi: r10, rdx: r11, rax: rbp)
 	rrmovq %r8, %r9
 	rrmovq %rdx, %r10
 	rrmovq %rbp, %r11
@@ -164,27 +157,30 @@ copy1:
 	subq   %r9, %rbp
 	mrmovq 0(%r9), %rbp
 	jge     copycontinue1
+	rrmovq %r11, %rbp
 
 	# TODO: Copy inline v2
-	# inlining (rdi: r9 , rsi: r10, rdx: r11, rax: rbp)
+	# inlining (rbx: r9 , rsi: r10, rdx: r11, rax: rbp)
 	rrmovq %rcx, %r9
-	rrmovq %rsi, %r10
+	rrmovq %r12, %r10
+	rrmovq %rbp, %r11
 	jmp copy2
 copycontinue2:
-	rmmovq %rax, 0(%r11)
+	rmmovq %rbp, 0(%r11)
 	addq   %r14, %r11
 	addq   %r14, %r9
 copy2:	
-	rrmovq %r10, %rax
-	subq   %r9, %rax
-	mrmovq 0(%r9), %rax
+	rrmovq %r10, %rbp
+	subq   %r9, %rbp
+	mrmovq 0(%r9), %rbp
 	jge     copycontinue2
+	rrmovq %r11, %rbp
 	
-	rrmovq %rdi, %rax
+	rrmovq %rbx, %r8
 	
-	rrmovq %rsi, %r10
-	subq %rax, %r10
-	rrmovq %rax, %r11
+	rrmovq %r12, %r10
+	subq %r8, %r10
+	rrmovq %r8, %r11
 	irmovq temp, %r9
 	addq %r9, %r10
 	jmp copy3
@@ -197,9 +193,19 @@ copy3:
 	subq   %r9, %rax
 	mrmovq 0(%r9), %rax
 	jge     copycontinue3
-	ret
+	irmovq $2, %rcx
+    mulq %r13, %rcx # rcx = 2*curr_size
+    addq %rcx, %rbx # left_start += 2*curr_size
+    jmp loop2
+
 
 done:	ret
+
+loop2done: 
+    irmovq $2, %rcx
+    mulq %rcx, %r13 # curr_size = 2*curr_size
+    jmp loop1
+
 
 
 #
