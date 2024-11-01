@@ -9,11 +9,10 @@
             "type": "cppdbg",
             "request": "launch",
             "preLaunchTask": "Build",
-            "program": "${workspaceFolder}/test", //path to your programs exe and exe name
+            // "program": "${workspaceFolder}/test", //path to your programs exe and exe name
+            "program": "${workspaceFolder}/cache",
             "args": [],
             "cwd": "${workspaceFolder}",
         }
     ]
 }
-
-
