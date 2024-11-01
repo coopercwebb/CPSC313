@@ -108,6 +108,13 @@ simcache_t *cache_new(size_t num_bytes, size_t associativity, size_t block_size,
  */
 void cache_free(simcache_t *cache) {
   /* TODO: TO BE COMPLETED BY THE STUDENT */
+  for (size_t i = 0; i < cache->num_sets; i++) {
+    free(cache->sets[i].lru_list);
+  }
+  free(cache->sets);
+  free(cache->lines);
+  free(cache->memory);
+  free(cache);
 }
 
 /*
@@ -212,7 +219,7 @@ cache_line_t *cache_set_find_line_matching(simcache_t *cache,
    */
   cache_line_t *cur_line = cache_set->lines;
   uint64_t cur_set = 0;
-  while (cur_set < cache->num_sets) {
+  while (cur_set < cache->associativity) {
     if (cur_line->tag == tag && cur_line->is_valid) {
       cur_line->age = cache->age;
       if (cache->policies == CACHE_REPLACEMENTPOLICY_LFU) {
@@ -239,10 +246,10 @@ size_t choose_unmarked_cache_line(simcache_t *cache, cache_set_t *cache_set,
   cache_line_t *cur_line = cache_set->lines;
   uint64_t cur_set = 0;
 
-  if (cache_set->num_marked >= cache->num_sets) {
+  if (cache_set->num_marked >= cache->associativity) {
     // unmark all lines
     cache_set->num_marked = 0;
-    while (cur_set < cache->num_sets) {
+    while (cur_set < cache->associativity) {
       cur_line->use_count = 0;
       cur_line++;
       cur_set++;
@@ -250,7 +257,8 @@ size_t choose_unmarked_cache_line(simcache_t *cache, cache_set_t *cache_set,
   }
 
   // return (generate_random_number() % cache->num_sets);
-  return (generate_random_number() % (cache->num_sets - cache_set->num_marked));
+  return (generate_random_number() %
+          (cache->associativity - cache_set->num_marked));
 }
 
 /*
@@ -278,7 +286,7 @@ cache_line_t *find_available_cache_line(simcache_t *cache,
   cache_line_t *cur_line = cache_set->lines;
   uint64_t cur_set = 0;
 
-  while (cur_set < cache->num_sets) {
+  while (cur_set < cache->associativity) {
     if (!cur_line->is_valid) {
       // found avail line
       cur_line->use_count = 1;
@@ -307,7 +315,7 @@ cache_line_t *find_available_cache_line(simcache_t *cache,
     while (sel_line->use_count) {
       sel_line++;
       sel_index++;
-      if (sel_index == cache->num_sets) {
+      if (sel_index == cache->associativity) {
         sel_line = cache_set->lines;
         sel_index = 0;
       }
@@ -315,7 +323,7 @@ cache_line_t *find_available_cache_line(simcache_t *cache,
     sel_line->use_count++;
   } else if (cache->policies == CACHE_REPLACEMENTPOLICY_LFU) {
     // evict last item in lru_list, reset age and use_count
-    sel_index = *(cache_set->lru_list + (cache->num_sets - 1));
+    sel_index = *(cache_set->lru_list + (cache->associativity - 1));
     sel_line = cache_set->lines + sel_index;
     // We then update the age of the cache to be the value of age + use_count
     // from the evicted cache line.
