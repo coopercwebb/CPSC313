@@ -1,20 +1,23 @@
 #ifndef PARSE_PATH_H
 #define PARSE_PATH_H
 
-#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 typedef struct
 {
-    /* It is up to you to define the contents of this struct. */
+    /* TODO: It is up to you to define the contents of this struct. */
+    char **path_buf;
+    int len;
+    int cnt;
 } path_parser_t;
 
 /*
  * Return a new path parser for the given string representing (hopefully)
  * a path.
  */
-path_parser_t *new_path_parser(char * str);
+path_parser_t *new_path_parser(char *str);
 
 /*
  * Return the next component of the path, or NULL if no such component
