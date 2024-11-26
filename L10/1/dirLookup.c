@@ -19,7 +19,6 @@ CS313ino_t dirLookup(const char *filename, const char *component) {
 
     unsigned char buf[sizeof(dir_entry_t)];
     size_t bytes_read;
-    size_t bytes_read_cont;
     dir_entry_t *decode;
 
     // Important Note: The normal (C) rules for stucture size and alignment don't apply to directory entries.
@@ -43,7 +42,11 @@ CS313ino_t dirLookup(const char *filename, const char *component) {
         if ((bytes_read = fread(buf + (sizeof(dir_entry_t) - 256), sizeof(*buf), name_len, file_in) > 0)) {
             decode = (dir_entry_t *)buf;
         }
-        printf("test\n");
+
+        // Deleted files will have inode of 0, must ignore
+        if (decode->de_ino != 0 && strncmp(decode->de_name, component, strlen(component)) == 0) {
+            return decode->de_ino;
+        }
     }
 
     fclose(file_in);
