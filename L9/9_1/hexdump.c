@@ -18,11 +18,14 @@ int hexdump(const char *infile, const char *outfile) {
         return 0;
     }
 
-    int fd_out = open(outfile, O_WRONLY | O_CREAT | O_TRUNC);
+    int fd_out = open(outfile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+
     if (fd_out == -1) {
         close(fd_in);
         return 0;
     }
+
+    dup2(fd_out, STDOUT_FILENO);
 
     int32_t offset = 0x0;
     ssize_t bytes_read;
@@ -30,14 +33,14 @@ int hexdump(const char *infile, const char *outfile) {
 
     while ((bytes_read = read(fd_in, buf, 16)) > 0) {
         printf("%08x       ", offset);
-        printf("%x", buf[0] & 0xFF);
+        printf("%02x", buf[0] & 0xFF);
         for (int i = 1; i < bytes_read; i++) {
             if (i == 8) {
                 printf("    ");
             } else {
                 printf(" ");
             }
-            printf("%x", buf[i] & 0xFF);
+            printf("%02x", buf[i] & 0xFF);
         }
         printf("\n");
         offset += bytes_read;
