@@ -1,4 +1,4 @@
-CFLAGS = -Wall -Werror -Wextra -g
+CFLAGS = -Wall -Werror -Wextra -Wno-unused-variable -g
 OBJECTS = main.o dirLookup.o
 all: dirtest
 

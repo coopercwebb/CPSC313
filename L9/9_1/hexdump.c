@@ -28,7 +28,7 @@ int hexdump(const char *infile, const char *outfile) {
     dup2(fd_out, STDOUT_FILENO);
 
     int32_t offset = 0x0;
-    ssize_t bytes_read;
+    size_t bytes_read;
     char buf[16];
 
     while ((bytes_read = read(fd_in, buf, 16)) > 0) {
