@@ -9,7 +9,7 @@
             "type": "lldb",
             "request": "launch",
             "preLaunchTask": "Build",
-            "program": "${workspaceFolder}/dirtest",
+            "program": "${workspaceFolder}/test",
             "args": [],
             "cwd": "${workspaceFolder}",
         }
